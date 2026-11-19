@@ -1,0 +1,17 @@
+sources:
+  - name: agents-md
+    git: https://github.com/bensyverson/agents-md
+    ref: fd850708c4eda5a80c770c6c640d2f777e26c509
+modules:
+  - core
+  - principles
+  - docs
+  - evidence
+  - jobs
+  - planning
+  - delegation
+  - harness
+  - review
+  - subagent
+  - go
+  - cli-design

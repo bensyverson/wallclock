@@ -75,6 +75,7 @@ type rawEntry struct {
 	QuerySource string `json:"querySource"`
 
 	RequestRef        string      `json:"requestRef"`
+	APIRequestID      string      `json:"requestId"`
 	IsAPIErrorMessage bool        `json:"isApiErrorMessage"`
 	ThinkingMs        int64       `json:"thinkingDurationMs"`
 	ToolInputStreamMs int64       `json:"toolInputStreamMs"`
@@ -126,7 +127,10 @@ type rawToolResult struct {
 
 const syntheticModel = "<synthetic>"
 
-var toolUseIDTag = regexp.MustCompile(`<tool-use-id>([^<]+)</tool-use-id>`)
+var (
+	toolUseIDTag = regexp.MustCompile(`<tool-use-id>([^<]+)</tool-use-id>`)
+	bashInputTag = regexp.MustCompile(`(?s)^<bash-input>(.*?)</bash-input>`)
+)
 
 func (r *rawEntry) entry() (Entry, bool) {
 	switch r.Type {
@@ -151,7 +155,7 @@ func (r *rawEntry) entry() (Entry, bool) {
 	case TypeAPIRequest:
 		e.RequestID, e.QuerySource = r.ID, r.QuerySource
 	case TypeAssistant:
-		e.RequestRef = r.RequestRef
+		e.RequestRef, e.APIRequestID = r.RequestRef, r.APIRequestID
 		e.ThinkingMs, e.ToolInputStreamMs = r.ThinkingMs, r.ToolInputStreamMs
 		if r.Message != nil {
 			e.Model, e.StopReason = r.Message.Model, r.Message.StopReason
@@ -178,6 +182,12 @@ func (r *rawEntry) entry() (Entry, bool) {
 			}
 		}
 		e.Interrupted = strings.HasPrefix(e.Text, "[Request interrupted by user")
+		e.LocalInput = isLocalInput(e.Text)
+		if m := bashInputTag.FindStringSubmatch(e.Text); m != nil {
+			e.LocalCommand = m[1]
+		}
+		e.LocalOutput = strings.HasPrefix(e.Text, "<bash-stdout>") || strings.HasPrefix(e.Text, "<bash-stderr>") ||
+			strings.HasPrefix(e.Text, "<local-command-stdout>") || strings.HasPrefix(e.Text, "<local-command-stderr>")
 	case TypeSystem:
 		e.Subtype, e.DurationMs = r.Subtype, r.DurationMs
 	case TypeQueueOperation:
@@ -191,6 +201,19 @@ func (r *rawEntry) entry() (Entry, bool) {
 		}
 	}
 	return e, true
+}
+
+// localInputPrefixes open the messages Claude Code writes when the user
+// runs a shell command (!) or a slash command.
+var localInputPrefixes = []string{"<bash-input>", "<local-command-caveat>", "<command-name>", "<command-message>"}
+
+func isLocalInput(text string) bool {
+	for _, p := range localInputPrefixes {
+		if strings.HasPrefix(text, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // decodeContent reads a message's content, which is either a string or an

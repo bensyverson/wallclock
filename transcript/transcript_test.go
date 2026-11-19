@@ -1,6 +1,7 @@
 package transcript
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -223,5 +224,41 @@ func TestCompactDropsWhatTimingDoesNotUse(t *testing.T) {
 	}
 	if f.Entries[2].Text != "API Error: 529 Overloaded" {
 		t.Errorf("api error text dropped: %q", f.Entries[2].Text)
+	}
+}
+
+func TestLocalInputDetected(t *testing.T) {
+	for _, text := range []string{"<bash-input>ls</bash-input>", "<local-command-caveat>x", "<command-name>/clear</command-name>"} {
+		e := only(t, parse(t, `{"type":"user","timestamp":"2026-11-13T19:53:11.130Z","message":{"role":"user","content":`+strconvQuote(text)+`}}`))
+		if !e.LocalInput {
+			t.Errorf("%q not flagged as local input", text)
+		}
+	}
+	e := only(t, parse(t, `{"type":"user","timestamp":"2026-11-13T19:53:11.130Z","message":{"role":"user","content":"<bash-stdout>ok</bash-stdout>"}}`))
+	if e.LocalInput {
+		t.Error("command output flagged as local input")
+	}
+}
+
+func strconvQuote(s string) string { b, _ := json.Marshal(s); return string(b) }
+
+func TestLocalCommandAndOutput(t *testing.T) {
+	f := parse(t,
+		`{"type":"user","timestamp":"2026-11-13T19:53:11Z","message":{"role":"user","content":"<bash-input>scripts/deploy.sh --prod</bash-input>"}}`,
+		`{"type":"user","timestamp":"2026-11-13T19:53:40Z","message":{"role":"user","content":"<bash-stdout>ok</bash-stdout><bash-stderr></bash-stderr>"}}`,
+		`{"type":"user","timestamp":"2026-11-13T19:53:41Z","message":{"role":"user","content":"<local-command-stdout>done</local-command-stdout>"}}`,
+	)
+	if f.Entries[0].LocalCommand != "scripts/deploy.sh --prod" {
+		t.Errorf("command = %q", f.Entries[0].LocalCommand)
+	}
+	if !f.Entries[1].LocalOutput || !f.Entries[2].LocalOutput || f.Entries[0].LocalOutput {
+		t.Errorf("output flags = %v %v %v", f.Entries[0].LocalOutput, f.Entries[1].LocalOutput, f.Entries[2].LocalOutput)
+	}
+}
+
+func TestAssistantRequestIDParsed(t *testing.T) {
+	e := only(t, parse(t, `{"type":"assistant","requestId":"req_011","timestamp":"2026-09-01T20:48:46Z","message":{"content":[]}}`))
+	if e.APIRequestID != "req_011" {
+		t.Errorf("APIRequestID = %q", e.APIRequestID)
 	}
 }

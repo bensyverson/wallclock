@@ -1,6 +1,9 @@
 package classify
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // prefixRules are the built-in patterns: a command whose leading words equal
 // the prefix has that kind. Commands needing argument parsing (make, just,
@@ -58,6 +61,11 @@ var prefixRules = []struct {
 	{KindPackage, []string{"uv", "pip"}},
 	{KindPackage, []string{"uv", "sync"}},
 	{KindPackage, []string{"poetry", "install"}},
+	// Waiting
+	{KindWait, []string{"sleep"}},
+	{KindWait, []string{"gh", "run", "watch"}},
+	// JavaScript test runners
+	{KindTest, []string{"node", "--test"}},
 	// Version control
 	{KindVCS, []string{"git"}},
 	{KindVCS, []string{"gh"}},
@@ -65,6 +73,9 @@ var prefixRules = []struct {
 }
 
 func builtin(t []string) Kind {
+	if hasPrefix(t, []string{"gh"}) && slices.Contains(t, "--watch") {
+		return KindWait
+	}
 	for _, r := range prefixRules {
 		if hasPrefix(t, r.prefix) {
 			return r.kind

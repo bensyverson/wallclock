@@ -74,6 +74,7 @@ var wrappers = map[string][]string{
 	"nice":    {"-n"},
 	"env":     {"-u", "-C", "-S"},
 	"xcrun":   {"--sdk", "-sdk", "--toolchain", "-toolchain"},
+	"xargs":   {"-n", "-I", "-P", "-L", "-s", "-d", "-E"},
 }
 
 // subcommandWrappers launch the rest of the line after "<name> run".

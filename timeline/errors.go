@@ -12,6 +12,8 @@ const (
 	ErrorNetwork    = "network"
 	ErrorSleep      = "sleep"
 	ErrorOther      = "other"
+	// ErrorRetry is a request that got no response and was re-sent.
+	ErrorRetry = "retry"
 )
 
 // ErrorKind types an API error message by its text.

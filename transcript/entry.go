@@ -69,7 +69,10 @@ type Entry struct {
 	QuerySource string
 
 	// assistant
-	RequestRef        string
+	RequestRef string
+	// APIRequestID is Anthropic's request id; older transcripts, which log
+	// no api-request entries, group a response's blocks by it.
+	APIRequestID      string
 	Model             string
 	StopReason        string
 	IsAPIError        bool
@@ -88,6 +91,13 @@ type Entry struct {
 	ToolResult        *ToolResult
 	NotifiedToolUseID string
 	Interrupted       bool
+	// LocalInput marks a shell (!) or slash command the user ran directly;
+	// like a prompt, it ends a wait on the user.
+	LocalInput bool
+	// LocalCommand is the command line of a user's shell (!) command.
+	LocalCommand string
+	// LocalOutput marks the output of a user's shell or slash command.
+	LocalOutput bool
 
 	// system
 	Subtype    Subtype

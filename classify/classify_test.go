@@ -220,3 +220,26 @@ func TestKindValid(t *testing.T) {
 		}
 	}
 }
+
+// Regression: polling loops were the largest unclassified wait in real
+// transcripts (2026-11-19).
+func TestWaitKind(t *testing.T) {
+	c := mustNew(t)
+	cases := map[string]Kind{
+		"sleep 30": KindWait,
+		"until grep -q ready log.txt; do sleep 5; done":        KindWait,
+		"for i in 1 2 3; do curl -s localhost; sleep 2; done":  KindWait,
+		"until gh run view 123 | grep done; do sleep 30; done": KindWait,
+		"gh run watch 123":                   KindWait,
+		"gh pr checks 9 --watch":             KindWait,
+		"sleep 5 && go test ./...":           KindTest,
+		"node --test tests/":                 KindTest,
+		"find . -name '*.go' | xargs go vet": KindLint,
+		"git ls-files | xargs -n1 gofmt -l":  KindLint,
+	}
+	for cmd, want := range cases {
+		if got := c.Classify(cmd); got != want {
+			t.Errorf("Classify(%q) = %q, want %q", cmd, got, want)
+		}
+	}
+}

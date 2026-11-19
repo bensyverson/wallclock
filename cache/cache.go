@@ -19,7 +19,7 @@ import (
 
 // SchemaVersion changes whenever the cached form changes shape or meaning;
 // entries written under another version are ignored.
-const SchemaVersion = 1
+const SchemaVersion = 3
 
 // Cache stores compact parsed transcripts under a directory. A Cache with
 // an empty directory is disabled and always parses.

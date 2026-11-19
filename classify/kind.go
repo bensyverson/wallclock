@@ -11,17 +11,21 @@ const (
 	KindLint    Kind = "lint"
 	KindPackage Kind = "package"
 	KindVCS     Kind = "vcs"
-	KindBash    Kind = "bash" // anything not recognized
+	// KindWait is sleeping or polling: waiting on something outside the
+	// command, such as CI, a deploy or a background process.
+	KindWait Kind = "wait"
+	KindBash Kind = "bash" // anything not recognized
 )
 
 // priority orders kinds for chained commands: the highest wins.
 var priority = map[Kind]int{
 	KindBash:    0,
 	KindVCS:     1,
-	KindPackage: 2,
-	KindLint:    3,
-	KindBuild:   4,
-	KindTest:    5,
+	KindWait:    2,
+	KindPackage: 3,
+	KindLint:    4,
+	KindBuild:   5,
+	KindTest:    6,
 }
 
 // Valid reports whether k is one of the defined kinds.

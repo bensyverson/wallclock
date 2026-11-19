@@ -428,3 +428,171 @@ func eventsOf(tl Timeline, typ EventType) []Event {
 	}
 	return out
 }
+
+func turnEnd(sec float64) tr.Entry {
+	return tr.Entry{Type: tr.TypeSystem, Timestamp: at(sec), HasTimestamp: true, Subtype: tr.SubtypeTurnDuration}
+}
+
+func sysEntry(sec float64, sub tr.Subtype) tr.Entry {
+	return tr.Entry{Type: tr.TypeSystem, Timestamp: at(sec), HasTimestamp: true, Subtype: sub}
+}
+
+func userText(sec float64, text string) tr.Entry {
+	return tr.Entry{Type: tr.TypeUser, Timestamp: at(sec), HasTimestamp: true, Text: text, LocalInput: true}
+}
+
+// Regression: a session left idle after its last turn ended in harness
+// time when no prompt followed (found in real transcripts, 2026-11-19).
+func TestIdleAfterTurnEndWithoutPromptIsUserThenAway(t *testing.T) {
+	tl := build(t,
+		req(0, "r1"), asst(2, "r1", text()),
+		stopHook(2.1), turnEnd(2.2),
+		sysEntry(180, tr.SubtypeAwaySummary),
+		sysEntry(3*86400, "informational"),
+	)
+	expect(t, tl,
+		want{BucketAPI, "", 0, 2},
+		want{BucketHook, "", 2, 2.1},
+		want{BucketHarness, "", 2.1, 2.2},
+		want{BucketUser, "", 2.2, 2.2 + 10*60},
+		want{BucketAway, "", 2.2 + 10*60, 3 * 86400},
+	)
+}
+
+// Regression: a user's own shell command or slash command carries no
+// human origin but still ends a wait on the user.
+func TestShellAndSlashInputEndUserWait(t *testing.T) {
+	for _, input := range []string{"<bash-input>scripts/deploy.sh</bash-input>", "<local-command-caveat>The command below…", "<command-name>/clear</command-name>"} {
+		tl := build(t,
+			req(0, "r1"), asst(2, "r1", text()), stopHook(2.1), turnEnd(2.2),
+			userText(122.2, input),
+			req(130, "r2"), asst(132, "r2", text()),
+		)
+		expect(t, tl,
+			want{BucketAPI, "", 0, 2},
+			want{BucketHook, "", 2, 2.1},
+			want{BucketHarness, "", 2.1, 2.2},
+			want{BucketUser, "", 2.2, 122.2},
+			want{BucketHarness, "", 122.2, 130},
+			want{BucketAPI, "", 130, 132},
+		)
+	}
+}
+
+func TestNotificationAfterTurnEndIsStillBackground(t *testing.T) {
+	tl := build(t,
+		req(0, "r1"), asst(2, "r1", bgBash("b1", "go test ./...")), result(2.2, "b1"),
+		req(2.3, "r2"), asst(4, "r2", text()), turnEnd(4.1),
+		notify(60, "b1"),
+		req(60.2, "r3"), asst(62, "r3", text()),
+	)
+	expect(t, tl,
+		want{BucketAPI, "", 0, 2},
+		want{BucketTool, "test", 2, 2.2},
+		want{BucketHarness, "", 2.2, 2.3},
+		want{BucketAPI, "", 2.3, 4},
+		want{BucketHarness, "", 4, 4.1},
+		want{BucketBackground, "test", 4.1, 60},
+		want{BucketHarness, "", 60, 60.2},
+		want{BucketAPI, "", 60.2, 62},
+	)
+}
+
+func localCmd(sec float64, cmd string) tr.Entry {
+	e := userText(sec, "<bash-input>"+cmd+"</bash-input>")
+	e.LocalCommand = cmd
+	return e
+}
+
+func localOut(sec float64) tr.Entry {
+	return tr.Entry{Type: tr.TypeUser, Timestamp: at(sec), HasTimestamp: true, LocalOutput: true}
+}
+
+// Regression: after Esc, the thread waits on the user, not the harness.
+func TestInterruptionEndsTurn(t *testing.T) {
+	tl := build(t, req(0, "r1"), asst(2, "r1", text()), req(3, "r2"), interrupt(4), sysEntry(700, tr.SubtypeAwaySummary))
+	expect(t, tl,
+		want{BucketAPI, "", 0, 2},
+		want{BucketHarness, "", 2, 4},
+		want{BucketUser, "", 4, 604},
+		want{BucketAway, "", 604, 700},
+	)
+}
+
+// Regression: a request that got no response and was re-sent was a wait
+// on Anthropic (a 10-minute timeout in real transcripts).
+func TestUnansweredRequestRetriedIsAPIError(t *testing.T) {
+	tl := build(t, req(0, "r1"), req(600, "r2"), asst(610, "r2", text()))
+	expect(t, tl,
+		want{BucketAPIError, "retry", 0, 600},
+		want{BucketAPI, "", 600, 610},
+	)
+	if evs := eventsOf(tl, EventAPIError); len(evs) != 1 || evs[0].Kind != "retry" {
+		t.Errorf("events = %+v", evs)
+	}
+}
+
+// Regression: a user's own shell command is a wait on the computer.
+func TestUserShellCommandIsTool(t *testing.T) {
+	tl := build(t,
+		req(0, "r1"), asst(2, "r1", text()), turnEnd(2.5),
+		localCmd(32.5, "go test ./..."), localOut(62.5),
+		req(63, "r2"), asst(65, "r2", text()),
+	)
+	expect(t, tl,
+		want{BucketAPI, "", 0, 2},
+		want{BucketHarness, "", 2, 2.5},
+		want{BucketUser, "", 2.5, 32.5},
+		want{BucketTool, "test", 32.5, 62.5},
+		want{BucketHarness, "", 62.5, 63},
+		want{BucketAPI, "", 63, 65},
+	)
+}
+
+// Regression: an API error with no request (an expired login) ends the turn
+// and is counted.
+func TestUnrequestedAPIErrorEndsTurn(t *testing.T) {
+	tl := build(t, human(0), apiErr(0.5, "", "Login reached its time limit · Please run /login"), req(66, "r1"), asst(70, "r1", text()))
+	expect(t, tl,
+		want{BucketHarness, "", 0, 0.5},
+		want{BucketUser, "", 0.5, 66},
+		want{BucketAPI, "", 66, 70},
+	)
+	if evs := eventsOf(tl, EventAPIError); len(evs) != 1 || evs[0].Kind != "auth" {
+		t.Errorf("events = %+v", evs)
+	}
+}
+
+// Regression: Claude Code often supersedes a request within a second; that
+// is part of the API wait, not a retry (74 of 76 "retries" in real data).
+func TestQuicklySupersededRequestIsAPI(t *testing.T) {
+	tl := build(t, req(0, "r1"), req(0.4, "r2"), asst(3, "r2", text()))
+	expect(t, tl, want{BucketAPI, "", 0, 3})
+	if n := countEvents(tl, EventAPIError); n != 0 {
+		t.Errorf("api error events = %d, want 0", n)
+	}
+}
+
+func legacyAsst(sec float64, requestID string, blocks ...tr.Block) tr.Entry {
+	e := asst(sec, "", blocks...)
+	e.APIRequestID = requestID
+	return e
+}
+
+// Regression: Claude Code before ~2.1.3xx logged no api-request entries, so
+// older sessions reported zero API time (found by the cost-state cross-check).
+func TestLegacyThreadWithoutRequestEntries(t *testing.T) {
+	tl := build(t,
+		human(0),
+		legacyAsst(3, "A", tool("t1", "Read")),
+		result(4, "t1"),
+		legacyAsst(5, "A", bash("t2", "go test ./...")),
+		result(15, "t2"),
+		legacyAsst(18, "B", text()),
+	)
+	expect(t, tl,
+		want{BucketAPI, "", 0, 5},
+		want{BucketTool, "test", 5, 15},
+		want{BucketAPI, "", 15, 18},
+	)
+}

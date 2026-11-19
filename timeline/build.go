@@ -65,6 +65,7 @@ type toolUse struct {
 
 type builder struct {
 	opt    Options
+	reqs   map[string]time.Time
 	tools  map[string]toolUse
 	spans  []span
 	out    []Interval
@@ -126,9 +127,14 @@ func (b *builder) collect(es []tr.Entry) {
 			}
 		}
 	}
+	if len(reqStart) == 0 {
+		b.legacyRequests(es)
+	}
+	b.orphanErrors(es, reqStart)
 	for _, id := range reqOrder {
 		r := resps[id]
 		if r == nil {
+			b.retry(es, reqStart[id])
 			continue
 		}
 		iv := Interval{Start: reqStart[id], End: r.end, Bucket: BucketAPI}
@@ -142,6 +148,83 @@ func (b *builder) collect(es []tr.Entry) {
 		}
 		b.addComputer(iv)
 	}
+}
+
+// legacyRequests derives API intervals for transcripts that log no
+// api-request entries: a response, grouped by Anthropic's request id, runs
+// from the last user entry before its first block to its last block.
+func (b *builder) legacyRequests(es []tr.Entry) {
+	type group struct{ start, end time.Time }
+	groups := map[string]*group{}
+	var order []string
+	var lastUser time.Time
+	for _, e := range es {
+		switch {
+		case e.Type == tr.TypeUser:
+			lastUser = e.Timestamp
+		case e.Type == tr.TypeAssistant && e.APIRequestID != "" && !e.IsAPIError:
+			g := groups[e.APIRequestID]
+			if g == nil {
+				start := lastUser
+				if start.IsZero() {
+					start = e.Timestamp
+				}
+				g = &group{start: start}
+				groups[e.APIRequestID] = g
+				order = append(order, e.APIRequestID)
+			}
+			g.end = e.Timestamp
+		}
+	}
+	for _, id := range order {
+		g := groups[id]
+		b.addComputer(Interval{Start: g.start, End: g.end, Bucket: BucketAPI})
+	}
+}
+
+// minRetry is the shortest wait on an unanswered request that counts as a
+// retry; Claude Code routinely supersedes a request within a second.
+const minRetry = 5 * time.Second
+
+// retry records an unanswered request that was followed by another
+// request as a wait on Anthropic: the request was abandoned and re-sent.
+func (b *builder) retry(es []tr.Entry, start time.Time) {
+	for _, e := range es {
+		if !e.Timestamp.After(start) {
+			continue
+		}
+		switch e.Type {
+		case tr.TypeAPIRequest:
+			iv := Interval{Start: start, End: e.Timestamp, Bucket: BucketAPI}
+			if iv.Duration() >= minRetry {
+				iv.Bucket, iv.Kind = BucketAPIError, ErrorRetry
+				b.event(start, EventAPIError, ErrorRetry)
+			}
+			b.addComputer(iv)
+			return
+		case tr.TypeAssistant, tr.TypeUser:
+			return
+		}
+	}
+}
+
+// orphanErrors counts API errors Claude Code reported without a request,
+// such as an expired login.
+func (b *builder) orphanErrors(es []tr.Entry, reqs map[string]time.Time) {
+	for _, e := range es {
+		if isOrphanError(e, reqs) {
+			b.event(e.Timestamp, EventAPIError, ErrorKind(e.Text))
+		}
+	}
+	b.reqs = reqs
+}
+
+func isOrphanError(e tr.Entry, reqs map[string]time.Time) bool {
+	if e.Type != tr.TypeAssistant || !e.IsAPIError {
+		return false
+	}
+	_, ok := reqs[e.RequestRef]
+	return e.RequestRef == "" || !ok
 }
 
 // addTool records the interval from a tool call to its result.
@@ -266,31 +349,59 @@ func (b *builder) owner(a, z time.Time) (Interval, bool) {
 }
 
 // gap classifies an uncovered stretch by the entries inside it: a stop
-// hook ends hook time, a human prompt ends a user wait, a task
-// notification ends a background or subagent wait. What remains is harness.
+// hook ends hook time, a prompt ends a user wait, a task notification ends
+// a background or subagent wait. Once a turn has ended, the thread is
+// waiting on the user until something starts the next turn. What remains
+// is harness.
 func (b *builder) gap(a, z time.Time, es []tr.Entry) {
 	cur := a
+	turnEnded := false
+	localKind := ""
 	for _, e := range es {
 		if !e.Timestamp.After(cur) || e.Timestamp.After(z) {
 			continue
 		}
 		switch {
-		case e.Type == tr.TypeSystem && (e.Subtype == tr.SubtypeStopHookSummary):
+		case e.Type == tr.TypeSystem && e.Subtype == tr.SubtypeStopHookSummary:
 			b.emit(Interval{Start: cur, End: e.Timestamp, Bucket: BucketHook})
-		case e.Type == tr.TypeUser && e.Origin == tr.OriginHuman:
+		case e.Type == tr.TypeSystem && e.Subtype == tr.SubtypeTurnDuration:
+			b.emit(Interval{Start: cur, End: e.Timestamp, Bucket: BucketHarness})
+			turnEnded = true
+		case e.Interrupted || isOrphanError(e, b.reqs):
+			b.emit(Interval{Start: cur, End: e.Timestamp, Bucket: BucketHarness})
+			turnEnded = true
+		case e.LocalOutput && localKind != "":
+			b.emit(Interval{Start: cur, End: e.Timestamp, Bucket: BucketTool, Kind: localKind})
+			localKind = ""
+		case isPrompt(e):
 			b.emitPerson(Interval{Start: cur, End: e.Timestamp, Bucket: BucketUser})
+			turnEnded = false
+			if e.LocalCommand != "" {
+				localKind = b.toolKind(tr.Block{Name: "Bash", Command: e.LocalCommand})
+			}
 		case e.Type == tr.TypeUser && e.Origin == tr.OriginTaskNotification:
 			b.emit(b.wakeup(cur, e))
+			turnEnded = false
 		case e.Type == tr.TypeUser && (e.Origin == tr.OriginPeer || e.Origin == tr.OriginCoordinator):
 			b.emit(Interval{Start: cur, End: e.Timestamp, Bucket: BucketIdle})
+			turnEnded = false
 		default:
 			continue
 		}
 		cur = e.Timestamp
 	}
-	if z.After(cur) {
-		b.emit(Interval{Start: cur, End: z, Bucket: BucketHarness})
+	if !z.After(cur) {
+		return
 	}
+	if turnEnded {
+		b.emitPerson(Interval{Start: cur, End: z, Bucket: BucketUser})
+		return
+	}
+	b.emit(Interval{Start: cur, End: z, Bucket: BucketHarness})
+}
+
+func isPrompt(e tr.Entry) bool {
+	return e.Type == tr.TypeUser && (e.Origin == tr.OriginHuman || e.LocalInput)
 }
 
 // wakeup classifies an idle stretch ended by a task notification, by the

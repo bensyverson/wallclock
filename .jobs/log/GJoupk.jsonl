@@ -75,3 +75,18 @@
 {"v":1,"rep":"GJoupk","seq":75,"ts":1795116752777,"actor":"mend","type":"noted","task":"yoBopJ","data":{"text":"All five findings fixed with red-first regression tests (timeline/review_test.go, transcript/lenient_test.go). 50k-entry Build: ~15 s to well under 1 s. Finding 5 has no observable timeline effect (equal-timestamp results are zero-length); tested at the builder level. Not committed; branch handed back."}}
 {"v":1,"rep":"GJoupk","seq":76,"ts":1795116752778,"actor":"mend","type":"heartbeat","task":"yoBopJ","data":{"new_expires_at":1795118552}}
 {"v":1,"rep":"GJoupk","seq":77,"ts":1795116753101,"actor":"mend","type":"released","task":"yoBopJ","data":{"was_claimed_by":"mend","was_expires_at":1795118552}}
+{"v":1,"rep":"GJoupk","seq":78,"ts":1795116827629,"actor":"claude","type":"criterion_state","task":"yoBopJ","data":{"label":"Each finding has a regression test that failed before the fix","state":"passed","prior":"pending","short_id":"5xA"}}
+{"v":1,"rep":"GJoupk","seq":79,"ts":1795116827653,"actor":"claude","type":"criterion_state","task":"yoBopJ","data":{"label":"A 50k-entry thread builds in under 1 s (test)","state":"passed","prior":"pending","short_id":"a3V"}}
+{"v":1,"rep":"GJoupk","seq":80,"ts":1795116827674,"actor":"claude","type":"done","task":"yoBopJ","data":{"note":"Integrated in 2bd398d (agent mend). Read the full diff; differential real-data run old vs new identical; 50k thread 28.8ms.","cascade":false,"criteria_bulk_state":"passed","was_status":"available"}}
+{"v":1,"rep":"GJoupk","seq":81,"ts":1795116827706,"actor":"claude","type":"criterion_state","task":"RTkaM2","data":{"label":"A findings doc in project/ reports per-repo results, the cost-state cross-check and the share of time left in harness, each with the command that reproduces it.","state":"passed","prior":"pending","short_id":"pEU"}}
+{"v":1,"rep":"GJoupk","seq":82,"ts":1795116827717,"actor":"claude","type":"done","task":"RTkaM2","data":{"note":"Findings in project/2026-11-19-validation-findings.md; both review rounds fixed (858de89, 2bd398d).","cascade":false,"criteria_bulk_state":"passed","was_status":"claimed","was_claimed_by":"claude","was_expires_at":1795126674}}
+{"v":1,"rep":"GJoupk","seq":83,"ts":1795116827772,"actor":"claude","type":"labeled","task":"vHiCCc","data":{"names":["reviewed"],"existing":[]}}
+{"v":1,"rep":"GJoupk","seq":84,"ts":1795116827804,"actor":"claude","type":"labeled","task":"4bbX3l","data":{"names":["reviewed"],"existing":[]}}
+{"v":1,"rep":"GJoupk","seq":85,"ts":1795116827835,"actor":"claude","type":"labeled","task":"lv4mEK","data":{"names":["reviewed"],"existing":[]}}
+{"v":1,"rep":"GJoupk","seq":86,"ts":1795116827866,"actor":"claude","type":"labeled","task":"K8RUL7","data":{"names":["reviewed"],"existing":[]}}
+{"v":1,"rep":"GJoupk","seq":87,"ts":1795116827898,"actor":"claude","type":"labeled","task":"DmhqWj","data":{"names":["reviewed"],"existing":[]}}
+{"v":1,"rep":"GJoupk","seq":88,"ts":1795116827934,"actor":"claude","type":"labeled","task":"qC1hjn","data":{"names":["reviewed"],"existing":[]}}
+{"v":1,"rep":"GJoupk","seq":89,"ts":1795116827970,"actor":"claude","type":"labeled","task":"gXQ0iU","data":{"names":["reviewed"],"existing":[]}}
+{"v":1,"rep":"GJoupk","seq":90,"ts":1795116827997,"actor":"claude","type":"labeled","task":"tyXDeg","data":{"names":["reviewed"],"existing":[]}}
+{"v":1,"rep":"GJoupk","seq":91,"ts":1795116828025,"actor":"claude","type":"labeled","task":"RTkaM2","data":{"names":["reviewed"],"existing":[]}}
+{"v":1,"rep":"GJoupk","seq":92,"ts":1795116828052,"actor":"claude","type":"labeled","task":"yoBopJ","data":{"names":["reviewed"],"existing":[]}}

@@ -28,3 +28,13 @@
 {"v":1,"rep":"GJoupk","seq":28,"ts":1795114972458,"actor":"claude","type":"blocked","task":"RTkaM2","data":{"blocked_id":"RTkaM2","blocker_id":"tyXDeg"}}
 {"v":1,"rep":"GJoupk","seq":29,"ts":1795114972459,"actor":"claude","type":"imported","task":"vHiCCc","data":{"source":"2026-11-19-wallclock-plan.md","tasks":9,"leaves":8}}
 {"v":1,"rep":"GJoupk","seq":30,"ts":1795114976316,"actor":"claude","type":"claimed","task":"4bbX3l","data":{"duration":"2h","expires_at":1795122176}}
+{"v":1,"rep":"GJoupk","seq":31,"ts":1795115082781,"actor":"claude","type":"criterion_state","task":"4bbX3l","data":{"label":"`wallclock` with no arguments prints the primer and exits 0 (binary test).","state":"passed","prior":"pending","short_id":"str"}}
+{"v":1,"rep":"GJoupk","seq":32,"ts":1795115082810,"actor":"claude","type":"criterion_state","task":"4bbX3l","data":{"label":"An unknown verb exits 2 with a message naming the valid verbs (binary test).","state":"passed","prior":"pending","short_id":"q71"}}
+{"v":1,"rep":"GJoupk","seq":33,"ts":1795115082824,"actor":"claude","type":"criterion_state","task":"4bbX3l","data":{"label":"README and the AGENTS.md head describe the project with no placeholders left.","state":"passed","prior":"pending","short_id":"E2H"}}
+{"v":1,"rep":"GJoupk","seq":34,"ts":1795115082835,"actor":"claude","type":"done","task":"4bbX3l","data":{"note":"Scaffold landed in 0368417: module, cli adapter with primer and per-verb help, README, docs/buckets.md, AGENTS head, pre-commit hook.","cascade":false,"criteria_bulk_state":"passed","was_status":"claimed","was_claimed_by":"claude","was_expires_at":1795122176}}
+{"v":1,"rep":"GJoupk","seq":35,"ts":1795115082836,"actor":"claude","type":"unblocked","task":"DmhqWj","data":{"blocked_id":"DmhqWj","blocker_id":"4bbX3l","reason":"blocker_done"}}
+{"v":1,"rep":"GJoupk","seq":36,"ts":1795115082837,"actor":"claude","type":"unblocked","task":"lv4mEK","data":{"blocked_id":"lv4mEK","blocker_id":"4bbX3l","reason":"blocker_done"}}
+{"v":1,"rep":"GJoupk","seq":37,"ts":1795115082838,"actor":"claude","type":"unblocked","task":"qC1hjn","data":{"blocked_id":"qC1hjn","blocker_id":"4bbX3l","reason":"blocker_done"}}
+{"v":1,"rep":"GJoupk","seq":38,"ts":1795115114098,"actor":"tally","type":"claimed","task":"DmhqWj","data":{"duration":"2h","expires_at":1795122314}}
+{"v":1,"rep":"GJoupk","seq":39,"ts":1795115114465,"actor":"tally","type":"claimed","task":"qC1hjn","data":{"duration":"2h","expires_at":1795122314}}
+{"v":1,"rep":"GJoupk","seq":40,"ts":1795115154498,"actor":"claude","type":"claimed","task":"lv4mEK","data":{"duration":"2h","expires_at":1795122354}}

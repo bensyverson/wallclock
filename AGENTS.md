@@ -6,6 +6,8 @@ wallclock is a Go CLI that reads Claude Code transcripts (`~/.claude/projects/**
 
 **Local ruling (Ben, 2026-11-19): no other repo's name appears in this repo** — not in code, tests, fixtures, docs, findings or commit messages. Use generic names (`myapp`, `swiftapp`) in fixtures, and describe real repos in findings by language and profile ("a heavy Swift/Xcode repo"), never by name.
 
+Review baseline: 2026-11-19T00:00:00Z (the project's start, so all of v1 is in scope)
+
 ## Documentation
 
 - [README.md](README.md) — what wallclock is, install, quick start

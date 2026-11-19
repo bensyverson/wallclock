@@ -63,47 +63,43 @@ func (f *File) add(line []byte) {
 }
 
 type rawEntry struct {
-	Type        Type   `json:"type"`
-	Timestamp   string `json:"timestamp"`
-	SessionID   string `json:"sessionId"`
-	AgentID     string `json:"agentId"`
-	IsSidechain bool   `json:"isSidechain"`
-	Cwd         string `json:"cwd"`
-	Version     string `json:"version"`
+	Type        Type        `json:"type"`
+	Timestamp   string      `json:"timestamp"`
+	SessionID   string      `json:"sessionId"`
+	AgentID     string      `json:"agentId"`
+	IsSidechain lenientBool `json:"isSidechain"`
+	Cwd         string      `json:"cwd"`
+	Version     string      `json:"version"`
 
 	ID          string `json:"id"`
 	QuerySource string `json:"querySource"`
 
-	RequestRef        string      `json:"requestRef"`
-	APIRequestID      string      `json:"requestId"`
-	IsAPIErrorMessage bool        `json:"isApiErrorMessage"`
-	ThinkingMs        int64       `json:"thinkingDurationMs"`
-	ToolInputStreamMs int64       `json:"toolInputStreamMs"`
-	Message           *rawMessage `json:"message"`
+	RequestRef        string       `json:"requestRef"`
+	APIRequestID      string       `json:"requestId"`
+	IsAPIErrorMessage bool         `json:"isApiErrorMessage"`
+	ThinkingMs        lenientInt64 `json:"thinkingDurationMs"`
+	ToolInputStreamMs lenientInt64 `json:"toolInputStreamMs"`
+	Message           *rawMessage  `json:"message"`
 
 	Origin             *rawOrigin      `json:"origin"`
-	PermissionDecision *Permission     `json:"permissionDecision"`
+	PermissionDecision *rawPermission  `json:"permissionDecision"`
 	ToolUseResult      json.RawMessage `json:"toolUseResult"`
 
-	Subtype    Subtype `json:"subtype"`
-	DurationMs int64   `json:"durationMs"`
+	Subtype    Subtype      `json:"subtype"`
+	DurationMs lenientInt64 `json:"durationMs"`
 
 	Operation string `json:"operation"`
 
-	TotalAPIDuration               int64 `json:"totalAPIDuration"`
-	TotalAPIDurationWithoutRetries int64 `json:"totalAPIDurationWithoutRetries"`
-	TotalToolDuration              int64 `json:"totalToolDuration"`
-	TotalDuration                  int64 `json:"totalDuration"`
+	TotalAPIDuration               lenientInt64 `json:"totalAPIDuration"`
+	TotalAPIDurationWithoutRetries lenientInt64 `json:"totalAPIDurationWithoutRetries"`
+	TotalToolDuration              lenientInt64 `json:"totalToolDuration"`
+	TotalDuration                  lenientInt64 `json:"totalDuration"`
 }
 
 type rawMessage struct {
 	Model      string          `json:"model"`
 	StopReason string          `json:"stop_reason"`
 	Content    json.RawMessage `json:"content"`
-}
-
-type rawOrigin struct {
-	Kind Origin `json:"kind"`
 }
 
 type rawBlock struct {
@@ -142,7 +138,7 @@ func (r *rawEntry) entry() (Entry, bool) {
 		Type:        r.Type,
 		SessionID:   r.SessionID,
 		AgentID:     r.AgentID,
-		IsSidechain: r.IsSidechain,
+		IsSidechain: bool(r.IsSidechain),
 		Cwd:         r.Cwd,
 		Version:     r.Version,
 	}
@@ -156,7 +152,7 @@ func (r *rawEntry) entry() (Entry, bool) {
 		e.RequestID, e.QuerySource = r.ID, r.QuerySource
 	case TypeAssistant:
 		e.RequestRef, e.APIRequestID = r.RequestRef, r.APIRequestID
-		e.ThinkingMs, e.ToolInputStreamMs = r.ThinkingMs, r.ToolInputStreamMs
+		e.ThinkingMs, e.ToolInputStreamMs = int64(r.ThinkingMs), int64(r.ToolInputStreamMs)
 		if r.Message != nil {
 			e.Model, e.StopReason = r.Message.Model, r.Message.StopReason
 			e.Blocks, e.Text = decodeContent(r.Message.Content)
@@ -169,7 +165,10 @@ func (r *rawEntry) entry() (Entry, bool) {
 		if r.Origin != nil {
 			e.Origin = r.Origin.Kind
 		}
-		e.Permission = r.PermissionDecision
+		if r.PermissionDecision != nil {
+			p := r.PermissionDecision.Permission
+			e.Permission = &p
+		}
 		if len(r.ToolUseResult) > 0 && r.ToolUseResult[0] == '{' {
 			var tr rawToolResult
 			if json.Unmarshal(r.ToolUseResult, &tr) == nil {
@@ -189,15 +188,15 @@ func (r *rawEntry) entry() (Entry, bool) {
 		e.LocalOutput = strings.HasPrefix(e.Text, "<bash-stdout>") || strings.HasPrefix(e.Text, "<bash-stderr>") ||
 			strings.HasPrefix(e.Text, "<local-command-stdout>") || strings.HasPrefix(e.Text, "<local-command-stderr>")
 	case TypeSystem:
-		e.Subtype, e.DurationMs = r.Subtype, r.DurationMs
+		e.Subtype, e.DurationMs = r.Subtype, int64(r.DurationMs)
 	case TypeQueueOperation:
 		e.Operation = r.Operation
 	case TypeCostState:
 		e.Cost = &CostState{
-			APIMs:               r.TotalAPIDuration,
-			APIWithoutRetriesMs: r.TotalAPIDurationWithoutRetries,
-			ToolMs:              r.TotalToolDuration,
-			TotalMs:             r.TotalDuration,
+			APIMs:               int64(r.TotalAPIDuration),
+			APIWithoutRetriesMs: int64(r.TotalAPIDurationWithoutRetries),
+			ToolMs:              int64(r.TotalToolDuration),
+			TotalMs:             int64(r.TotalDuration),
 		}
 	}
 	return e, true

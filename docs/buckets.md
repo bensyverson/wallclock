@@ -17,7 +17,7 @@ Every thread counts its own time, and the totals add up across threads. If four 
 | `approval` | A tool call a person had to approve or reject. The transcript doesn't record when the person answered, so an approved call's whole interval counts here, including the command's own run time. |
 | `user` | Waiting for the person: from the end of a turn until the next one starts, or for an answer to a question Claude asked. Each wait counts at most `--away` (default 10 minutes). |
 | `away` | The part of a user or approval wait beyond `--away`. Reported, but not part of the active total, so coming back to a session days later doesn't skew the numbers. |
-| `suspended` | A computer or API wait longer than `--suspend` (default 1 hour), or a response cut off because the machine slept. Treated as the laptop being closed; reported, not active. |
+| `suspended` | A computer or API wait longer than `--suspend` (default 1 hour), unexplained time longer than `--away`, stop-hook time longer than `--suspend`, or a response cut off because the machine slept. Treated as the laptop being closed; reported, not active. |
 | `hook` | Time spent in hooks after Claude finished a turn. |
 | `idle` | A thread with nothing to do until a subagent finishes. Counted as zero (see above). |
 | `harness` | Gaps between known events that none of the above explains, such as Claude Code's own processing. A large share here means the rules need work; on real data it is about 1%. |

@@ -353,3 +353,44 @@ func TestFormatDuration(t *testing.T) {
 		}
 	}
 }
+
+// Regression (review 2026-11-19): repos sharing a base name merged.
+func TestSameBaseNameReposStaySeparate(t *testing.T) {
+	loader := fakeLoader{
+		"/p/1.jsonl": {Entries: []tr.Entry{req(0, "r", "/a/myapp"), asst(10, "r")}},
+		"/p/2.jsonl": {Entries: []tr.Entry{req(0, "r", "/b/myapp"), asst(20, "r")}},
+	}
+	resolver := fakeResolver{
+		"/a/myapp": {Root: "/a/myapp", Name: "myapp", Language: repo.LangGo},
+		"/b/myapp": {Root: "/b/myapp", Name: "myapp", Language: repo.LangSwift},
+	}
+	rep, err := Collect([]tr.Session{{ID: "1", Path: "/p/1.jsonl"}, {ID: "2", Path: "/p/2.jsonl"}}, loader, resolver, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Repos) != 2 || rep.Repos[0].Repo != "b/myapp" || rep.Repos[1].Repo != "a/myapp" || rep.Repos[0].Language != "swift" {
+		t.Errorf("repos = %+v", rep.Repos)
+	}
+}
+
+// Regression (review 2026-11-19): a session with no cwd resolved against
+// wallclock's own working directory.
+func TestSessionWithoutCwdIsUnknown(t *testing.T) {
+	loader := fakeLoader{"/p/1.jsonl": {Entries: []tr.Entry{req(0, "r", ""), asst(10, "r")}}}
+	rep, err := Collect([]tr.Session{{ID: "1", Path: "/p/1.jsonl"}}, loader, fakeResolver{"": {Root: "/somewhere", Name: "somewhere"}}, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Repos) != 1 || rep.Repos[0].Repo != UnknownRepo || rep.Repos[0].Language != "unknown" {
+		t.Errorf("repos = %+v", rep.Repos)
+	}
+}
+
+func TestRepoNamesInRangeListedWhenFilterMisses(t *testing.T) {
+	o := opts()
+	o.Repo = "goap"
+	rep := collect(t, o)
+	if len(rep.Repos) != 0 || len(rep.InRange) != 2 || rep.InRange[0] != "goapp" || rep.InRange[1] != "swiftapp" {
+		t.Errorf("repos = %+v, in range = %v", rep.Repos, rep.InRange)
+	}
+}

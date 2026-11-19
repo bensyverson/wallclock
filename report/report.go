@@ -5,6 +5,7 @@ package report
 
 import (
 	"cmp"
+	"path/filepath"
 	"slices"
 	"sync"
 	"time"
@@ -38,9 +39,16 @@ type Options struct {
 // Key names a bucket ("api", "tool:test") or an event ("api_error:overloaded").
 type Key string
 
+// UnknownRepo names the repo of sessions that recorded no working directory.
+const UnknownRepo = "unknown"
+
 // Summary totals one repo, one session, or everything.
 type Summary struct {
-	Repo     string
+	// Repo is the display name: the repo's base name, prefixed with its
+	// parent directory when two repos in the report share a base name.
+	Repo string
+	// Root is the repo's root directory; repos are grouped by it.
+	Root     string
 	Language string
 	Sessions int
 	Threads  int
@@ -91,12 +99,16 @@ type Report struct {
 	Sessions []SessionRow
 	// Unreadable lists transcripts that could not be read.
 	Unreadable []string
+	// InRange lists the names of repos with sessions in range, ignoring
+	// Options.Repo, so a filter that matches nothing can suggest names.
+	InRange []string
 }
 
 // Collect analyzes the sessions and aggregates them.
 func Collect(sessions []tr.Session, l Loader, r Resolver, opt Options) (*Report, error) {
 	rows := make([]*SessionRow, len(sessions))
 	unreadable := make([][]string, len(sessions))
+	names := make([]string, len(sessions))
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 8)
 	for i, s := range sessions {
@@ -105,30 +117,44 @@ func Collect(sessions []tr.Session, l Loader, r Resolver, opt Options) (*Report,
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			rows[i], unreadable[i] = analyze(s, l, r, opt)
+			rows[i], names[i], unreadable[i] = analyze(s, l, r, opt)
 		}()
 	}
 	wg.Wait()
 
 	rep := &Report{Since: opt.Since, Until: opt.Until, All: newSummary("all", "-")}
 	byRepo := map[string]*Summary{}
+	seen := map[string]bool{}
 	for i, row := range rows {
 		rep.Unreadable = append(rep.Unreadable, unreadable[i]...)
+		if names[i] != "" && !seen[names[i]] {
+			seen[names[i]] = true
+			rep.InRange = append(rep.InRange, names[i])
+		}
 		if row == nil {
 			continue
 		}
-		rep.Sessions = append(rep.Sessions, *row)
-		sum := byRepo[row.Repo]
+		sum := byRepo[row.Root]
 		if sum == nil {
 			s := newSummary(row.Repo, row.Language)
+			s.Root = row.Root
 			sum = &s
-			byRepo[row.Repo] = sum
+			byRepo[row.Root] = sum
 		}
 		sum.add(row.Summary)
 		rep.All.add(row.Summary)
 	}
+	slices.Sort(rep.InRange)
+	display := disambiguate(byRepo)
 	for _, s := range byRepo {
+		s.Repo = display[s.Root]
 		rep.Repos = append(rep.Repos, *s)
+	}
+	for _, row := range rows {
+		if row != nil {
+			row.Repo = display[row.Root]
+			rep.Sessions = append(rep.Sessions, *row)
+		}
 	}
 	slices.SortFunc(rep.Repos, func(a, b Summary) int {
 		if c := cmp.Compare(b.Active(), a.Active()); c != 0 {
@@ -145,26 +171,49 @@ func Collect(sessions []tr.Session, l Loader, r Resolver, opt Options) (*Report,
 	return rep, nil
 }
 
+// disambiguate maps each repo root to a display name: its base name, or
+// parent/base when another repo in the report shares the base name.
+func disambiguate(byRepo map[string]*Summary) map[string]string {
+	count := map[string]int{}
+	for _, s := range byRepo {
+		count[s.Repo]++
+	}
+	out := map[string]string{}
+	for root, s := range byRepo {
+		name := s.Repo
+		if count[name] > 1 && root != "" {
+			name = filepath.Base(filepath.Dir(root)) + "/" + name
+		}
+		out[root] = name
+	}
+	return out
+}
+
 // analyze builds one session's row, or nil when it is filtered out or has
-// no time in range.
-func analyze(s tr.Session, l Loader, r Resolver, opt Options) (*SessionRow, []string) {
+// no time in range. It also returns the repo's name when the session is
+// not scratch, whether or not the repo filter kept it.
+func analyze(s tr.Session, l Loader, r Resolver, opt Options) (*SessionRow, string, []string) {
 	var unreadable []string
 	main, err := l.Load(s.Path)
 	if err != nil {
-		return nil, []string{s.Path}
+		return nil, "", []string{s.Path}
 	}
-	info := r.Resolve(firstCwd(main))
+	info := repo.Info{Name: UnknownRepo, Language: repo.LangUnknown}
+	if cwd := firstCwd(main); cwd != "" {
+		info = r.Resolve(cwd)
+	}
 	if info.Scratch && !opt.IncludeScratch {
-		return nil, nil
+		return nil, "", nil
 	}
 	if opt.Repo != "" && info.Name != opt.Repo {
-		return nil, nil
+		return nil, info.Name, nil
 	}
 	lang := string(info.Language)
 	if lang == "" {
 		lang = string(repo.LangUnknown)
 	}
 	row := &SessionRow{ID: s.ID, Summary: newSummary(info.Name, lang)}
+	row.Root = info.Root
 	row.Sessions = 1
 	threads := []*tr.File{main}
 	for _, a := range s.Subagents {
@@ -182,9 +231,9 @@ func analyze(s tr.Session, l Loader, r Resolver, opt Options) (*SessionRow, []st
 		}
 	}
 	if row.Threads == 0 {
-		return nil, unreadable
+		return nil, info.Name, unreadable
 	}
-	return row, unreadable
+	return row, info.Name, unreadable
 }
 
 func firstCwd(f *tr.File) string {

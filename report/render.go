@@ -113,7 +113,7 @@ func writePlain(w io.Writer, rep *Report) error {
 			}
 			fmt.Fprintf(&b, "%s\t%s\t%s\t%d\t%.3f\n", s.Repo, s.Language, k, secs(s.Buckets[k]), share(s.Buckets[k], active))
 		}
-		fmt.Fprintf(&b, "%s\t%s\tactive\t%d\t1.000\n", s.Repo, s.Language, secs(active))
+		fmt.Fprintf(&b, "%s\t%s\tactive\t%d\t%.3f\n", s.Repo, s.Language, secs(active), share(active, active))
 		for _, k := range inactive {
 			fmt.Fprintf(&b, "%s\t%s\t%s\t%d\t-\n", s.Repo, s.Language, k, secs(s.Buckets[k]))
 		}

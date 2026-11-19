@@ -3,6 +3,7 @@ package cache
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -115,5 +116,40 @@ func TestMissingSourceIsError(t *testing.T) {
 	c, _, _ := setup(t)
 	if _, err := c.Load("/nonexistent/x.jsonl"); err == nil {
 		t.Error("want error for missing source")
+	}
+}
+
+// Regression (review 2026-11-19): clear deleted any dir starting with "v".
+func TestClearKeepsForeignDirs(t *testing.T) {
+	c, src, _ := setup(t)
+	load(t, c, src)
+	for _, d := range []string{"venv", "vendor", "v2x"} {
+		if err := os.MkdirAll(filepath.Join(c.Dir(), d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := c.Clear(); err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range []string{"venv", "vendor", "v2x"} {
+		if _, err := os.Stat(filepath.Join(c.Dir(), d)); err != nil {
+			t.Errorf("%s removed: %v", d, err)
+		}
+	}
+}
+
+// Regression (review 2026-11-19): a record with a null file was a hit.
+func TestNullFileRecordIsMiss(t *testing.T) {
+	c, src, parses := setup(t)
+	load(t, c, src)
+	key := c.keyPath(src)
+	data, _ := os.ReadFile(key)
+	data = []byte(strings.Replace(string(data), `"file":{`, `"file":null,"x":{`, 1))
+	if err := os.WriteFile(key, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f := load(t, Reopen(c), src)
+	if f == nil || *parses != 2 {
+		t.Errorf("file = %v, parses = %d; want a re-parse", f, *parses)
 	}
 }

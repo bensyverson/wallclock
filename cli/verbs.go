@@ -70,6 +70,9 @@ Example:
   wallclock cache clear
 `
 
+// maxDays bounds --days well below where the range arithmetic overflows.
+const maxDays = 36500
+
 type runFlags struct {
 	opt     report.Options
 	format  report.Format
@@ -117,8 +120,8 @@ func parseRunFlags(verb string, args []string, env Env) (runFlags, error) {
 	if daysSet && (*since != "" || *until != "") {
 		return rf, usagef("wallclock %s: --days conflicts with --since/--until; pass one way of setting the range", verb)
 	}
-	if daysSet && *days <= 0 {
-		return rf, usagef("wallclock %s: --days must be a positive number of days", verb)
+	if daysSet && (*days <= 0 || *days > maxDays) {
+		return rf, usagef("wallclock %s: --days must be a positive number of days, at most %d", verb, maxDays)
 	}
 	loc := env.Now.Location()
 	rf.opt.Until = env.Now
@@ -225,6 +228,23 @@ func collect(verb string, args []string, stderr io.Writer, env Env) (*report.Rep
 	return rep, rf.format, ExitOK
 }
 
+// finish turns a written report into an exit code: a repo filter that
+// matched nothing is a clean negative, and unreadable transcripts make the
+// totals partial, which is a target failure.
+func finish(verb string, rep *report.Report, repoFilter string, stderr io.Writer) int {
+	if repoFilter != "" && len(rep.Repos) == 0 {
+		fmt.Fprintf(stderr, "wallclock %s: no repo named %q has sessions in range; repos in range: %s\n",
+			verb, repoFilter, strings.Join(rep.InRange, ", "))
+		return ExitNegative
+	}
+	if n := len(rep.Unreadable); n > 0 {
+		fmt.Fprintf(stderr, "wallclock %s: %d transcript(s) could not be read, so totals are partial; first: %s\nCheck the file's permissions, or run 'wallclock cache clear' if the cache is suspect.\n",
+			verb, n, rep.Unreadable[0])
+		return ExitTarget
+	}
+	return ExitOK
+}
+
 // modifiedSince drops sessions none of whose files changed since t: they
 // cannot hold entries in range.
 func modifiedSince(sessions []transcript.Session, t time.Time) []transcript.Session {
@@ -252,7 +272,7 @@ func runReport(args []string, stdout, stderr io.Writer, env Env) int {
 	if err := report.WriteRepos(stdout, rep, format); err != nil {
 		return fail(stderr, err)
 	}
-	return ExitOK
+	return finish("report", rep, repoFlag(args), stderr)
 }
 
 func runSessions(args []string, stdout, stderr io.Writer, env Env) int {
@@ -263,7 +283,7 @@ func runSessions(args []string, stdout, stderr io.Writer, env Env) int {
 	if err := report.WriteSessions(stdout, rep, format); err != nil {
 		return fail(stderr, err)
 	}
-	return ExitOK
+	return finish("sessions", rep, repoFlag(args), stderr)
 }
 
 func runCache(args []string, stdout, stderr io.Writer, env Env) int {
@@ -287,4 +307,17 @@ func runCache(args []string, stdout, stderr io.Writer, env Env) int {
 	}
 	fmt.Fprintf(stderr, "wallclock cache: unknown subcommand %q; use 'wallclock cache' or 'wallclock cache clear'\n", strings.Join(args, " "))
 	return ExitUsage
+}
+
+// repoFlag returns the --repo value from already-validated arguments.
+func repoFlag(args []string) string {
+	for i, a := range args {
+		if v, ok := strings.CutPrefix(a, "--repo="); ok {
+			return v
+		}
+		if (a == "--repo" || a == "-repo") && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
 }

@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -57,7 +58,7 @@ func (c *Cache) Load(path string) (*transcript.File, error) {
 	}
 	key := c.keyPath(path)
 	if c.dir != "" {
-		if rec, ok := c.read(key); ok && rec.Version == c.version && rec.Path == path &&
+		if rec, ok := c.read(key); ok && rec.File != nil && rec.Version == c.version && rec.Path == path &&
 			rec.Size == fi.Size() && rec.ModTime == fi.ModTime().UnixNano() {
 			return rec.File, nil
 		}
@@ -117,6 +118,10 @@ func (c *Cache) write(key string, rec record) error {
 	return os.Rename(tmp.Name(), key)
 }
 
+// versionDirName matches the per-schema directories Clear may delete, and
+// nothing else a shared cache directory might hold.
+var versionDirName = regexp.MustCompile(`^v[0-9]+$`)
+
 // Clear removes every cached entry.
 func (c *Cache) Clear() error {
 	if c.dir == "" {
@@ -130,7 +135,7 @@ func (c *Cache) Clear() error {
 		return err
 	}
 	for _, e := range entries {
-		if e.IsDir() && strings.HasPrefix(e.Name(), "v") {
+		if e.IsDir() && versionDirName.MatchString(e.Name()) {
 			if err := os.RemoveAll(filepath.Join(c.dir, e.Name())); err != nil {
 				return err
 			}

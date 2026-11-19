@@ -193,3 +193,20 @@ func TestErrorsTeach(t *testing.T) {
 		}
 	}
 }
+
+// Regressions from review 2026-11-19.
+func TestReviewFindings(t *testing.T) {
+	env := fixtureEnv(t)
+	if _, errOut, code := runEnv(env, "report", "--days", "400000"); code != ExitUsage || !strings.Contains(errOut, "--days") {
+		t.Errorf("huge --days: exit %d, %s", code, errOut)
+	}
+	if _, errOut, code := runEnv(env, "report", "--repo", "myap"); code != ExitNegative || !strings.Contains(errOut, "myapp") {
+		t.Errorf("--repo typo: exit %d, %s", code, errOut)
+	}
+	files, _ := filepath.Glob(filepath.Join(env.ProjectsDir, "*", "*.jsonl"))
+	must(t, os.Chmod(files[0], 0))
+	t.Cleanup(func() { os.Chmod(files[0], 0o644) })
+	if _, errOut, code := runEnv(env, "report", "--no-cache"); code != ExitTarget || !strings.Contains(errOut, "could not be read") {
+		t.Errorf("unreadable: exit %d, %s", code, errOut)
+	}
+}

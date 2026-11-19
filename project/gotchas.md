@@ -13,3 +13,7 @@ Format: one dated H2 headline, then one paragraph. If an entry needs more than t
 ## 2026-11-19 Go and git fail inside the sandbox
 
 The sandbox denies reads under `~` except listed paths, so `go test` fails with the baffling "package bytes is not in std" (the real cause is the default `GOCACHE` under `~/Library/Caches`), and `git` fails reading `~/.gitconfig`. Run Go with `GOCACHE=$TMPDIR/gocache GOTELEMETRY=off`; run git commits outside the sandbox.
+
+## 2026-11-19 `$TMPDIR` differs inside and outside the sandbox
+
+A sandboxed command's `$TMPDIR` is a per-session directory; an unsandboxed one (needed for `git commit`, see above) gets the shared system temp, where other sessions leave files with the same generic names. `git commit -F $TMPDIR/msg2.txt` committed another project's message. Write message files to the session scratchpad by absolute path, and read the file back in the same command that commits.

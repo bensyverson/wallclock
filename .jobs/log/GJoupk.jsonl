@@ -38,3 +38,10 @@
 {"v":1,"rep":"GJoupk","seq":38,"ts":1795115114098,"actor":"tally","type":"claimed","task":"DmhqWj","data":{"duration":"2h","expires_at":1795122314}}
 {"v":1,"rep":"GJoupk","seq":39,"ts":1795115114465,"actor":"tally","type":"claimed","task":"qC1hjn","data":{"duration":"2h","expires_at":1795122314}}
 {"v":1,"rep":"GJoupk","seq":40,"ts":1795115154498,"actor":"claude","type":"claimed","task":"lv4mEK","data":{"duration":"2h","expires_at":1795122354}}
+{"v":1,"rep":"GJoupk","seq":41,"ts":1795115224679,"actor":"claude","type":"criterion_state","task":"lv4mEK","data":{"label":"Fixture tests cover each entry type the timeline needs, plus an unknown type and a malformed line.","state":"passed","prior":"pending","short_id":"6ZR"}}
+{"v":1,"rep":"GJoupk","seq":42,"ts":1795115224695,"actor":"claude","type":"criterion_state","task":"lv4mEK","data":{"label":"Subagent discovery finds agent files for a session in a fixture directory.","state":"passed","prior":"pending","short_id":"w4J"}}
+{"v":1,"rep":"GJoupk","seq":43,"ts":1795115224706,"actor":"claude","type":"done","task":"lv4mEK","data":{"note":"Landed: typed entries, Parse/ParseFile, Discover with subagents. Real-data smoke: 137 files, 371 MB, 0 malformed, 2.1s (ad-hoc test over ~/.claude/projects).","cascade":false,"criteria_bulk_state":"passed","was_status":"claimed","was_claimed_by":"claude","was_expires_at":1795122354}}
+{"v":1,"rep":"GJoupk","seq":44,"ts":1795115224707,"actor":"claude","type":"unblocked","task":"K8RUL7","data":{"blocked_id":"K8RUL7","blocker_id":"lv4mEK","reason":"blocker_done"}}
+{"v":1,"rep":"GJoupk","seq":45,"ts":1795115325153,"actor":"tally","type":"released","task":"DmhqWj","data":{"was_claimed_by":"tally","was_expires_at":1795122314}}
+{"v":1,"rep":"GJoupk","seq":46,"ts":1795115325519,"actor":"tally","type":"released","task":"qC1hjn","data":{"was_claimed_by":"tally","was_expires_at":1795122314}}
+{"v":1,"rep":"GJoupk","seq":47,"ts":1795115371101,"actor":"claude","type":"claimed","task":"K8RUL7","data":{"duration":"3h","expires_at":1795126171}}

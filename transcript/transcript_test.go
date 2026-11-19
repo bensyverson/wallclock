@@ -207,3 +207,21 @@ func TestDiscoverSessions(t *testing.T) {
 		t.Errorf("s2 subagents = %+v", sessions[1].Subagents)
 	}
 }
+
+func TestCompactDropsWhatTimingDoesNotUse(t *testing.T) {
+	f := parse(t,
+		`{"type":"user","timestamp":"2026-11-13T19:53:11.130Z","origin":{"kind":"human"},"message":{"role":"user","content":"a long prompt"}}`,
+		`{"type":"assistant","requestRef":"r","timestamp":"2026-11-13T19:53:12Z","message":{"content":[{"type":"text","text":"hello"},{"type":"thinking"},{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"go test"}}]}}`,
+		`{"type":"assistant","isApiErrorMessage":true,"timestamp":"2026-11-13T19:53:13Z","message":{"model":"<synthetic>","content":[{"type":"text","text":"API Error: 529 Overloaded"}]}}`,
+	)
+	f.Compact()
+	if f.Entries[0].Text != "" {
+		t.Errorf("prompt text kept: %q", f.Entries[0].Text)
+	}
+	if bs := f.Entries[1].Blocks; len(bs) != 1 || bs[0].Type != BlockToolUse || bs[0].Command != "go test" {
+		t.Errorf("blocks = %+v, want only the tool_use", bs)
+	}
+	if f.Entries[2].Text != "API Error: 529 Overloaded" {
+		t.Errorf("api error text dropped: %q", f.Entries[2].Text)
+	}
+}

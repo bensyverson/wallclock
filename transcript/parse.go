@@ -238,3 +238,25 @@ func truncate(s string) string {
 	}
 	return s
 }
+
+// Compact drops what timing analysis does not read, so a cached copy stays
+// small: message text (kept only for API errors, whose text names the
+// error) and content blocks other than tool calls and results.
+func (f *File) Compact() {
+	for i := range f.Entries {
+		e := &f.Entries[i]
+		if !e.IsAPIError {
+			e.Text = ""
+		}
+		kept := e.Blocks[:0]
+		for _, b := range e.Blocks {
+			if b.Type == BlockToolUse || b.Type == BlockToolResult {
+				kept = append(kept, b)
+			}
+		}
+		if len(kept) == 0 {
+			kept = nil
+		}
+		e.Blocks = kept
+	}
+}

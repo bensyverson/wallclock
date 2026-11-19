@@ -4,6 +4,8 @@ IMPORTANT: As you implement features, keep the documentation in docs/ up to date
 
 wallclock is a Go CLI that reads Claude Code transcripts (`~/.claude/projects/**.jsonl`) and reports, per repo and date range, how session time split between Anthropic, the computer, the user and everything else. Core logic lives in library packages (`transcript`, `timeline`, `classify`, `repo`, `cache`, `report`); `cli` is the thin adapter and `cmd/wallclock` the binary. Builds are cheap (seconds). In this sandbox, run Go with `GOCACHE=$TMPDIR/gocache GOTELEMETRY=off`.
 
+**Local ruling (Ben, 2026-11-19): no other repo's name appears in this repo** — not in code, tests, fixtures, docs, findings or commit messages. Use generic names (`myapp`, `swiftapp`) in fixtures, and describe real repos in findings by language and profile ("a heavy Swift/Xcode repo"), never by name.
+
 ## Documentation
 
 - [README.md](README.md) — what wallclock is, install, quick start

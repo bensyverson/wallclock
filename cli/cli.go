@@ -26,6 +26,9 @@ type Env struct {
 	CacheDir string
 	// Now is the reference time for relative date ranges.
 	Now time.Time
+	// Scratch lists path prefixes whose sessions are scratch; nil means
+	// the defaults from repo.DefaultScratch.
+	Scratch []string
 }
 
 type verb struct {

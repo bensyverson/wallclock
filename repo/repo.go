@@ -34,11 +34,16 @@ var defaultScratch = []string{"/tmp", "/private/tmp", "/var/folders"}
 // NewResolver returns a Resolver that flags the usual temp directories and
 // $TMPDIR as scratch.
 func NewResolver() *Resolver {
+	return NewResolverWithScratch(DefaultScratch())
+}
+
+// DefaultScratch returns the usual temp directories plus $TMPDIR.
+func DefaultScratch() []string {
 	prefixes := append([]string(nil), defaultScratch...)
 	if t := os.Getenv("TMPDIR"); t != "" {
 		prefixes = append(prefixes, t)
 	}
-	return NewResolverWithScratch(prefixes)
+	return prefixes
 }
 
 // NewResolverWithScratch returns a Resolver that flags paths under the given

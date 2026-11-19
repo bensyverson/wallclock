@@ -57,3 +57,7 @@
 {"v":1,"rep":"GJoupk","seq":57,"ts":1795115515725,"actor":"claude","type":"unblocked","task":"gXQ0iU","data":{"blocked_id":"gXQ0iU","blocker_id":"K8RUL7","reason":"blocker_done"}}
 {"v":1,"rep":"GJoupk","seq":58,"ts":1795115515726,"actor":"claude","type":"unblocked","task":"tyXDeg","data":{"blocked_id":"tyXDeg","blocker_id":"K8RUL7","reason":"blocker_done"}}
 {"v":1,"rep":"GJoupk","seq":59,"ts":1795115546241,"actor":"claude","type":"claimed","task":"gXQ0iU","data":{"duration":"2h","expires_at":1795122746}}
+{"v":1,"rep":"GJoupk","seq":60,"ts":1795115620456,"actor":"claude","type":"criterion_state","task":"gXQ0iU","data":{"label":"Tests show a hit on unchanged files, a miss after a change, and a miss after a schema version bump.","state":"passed","prior":"pending","short_id":"CkO"}}
+{"v":1,"rep":"GJoupk","seq":61,"ts":1795115620471,"actor":"claude","type":"done","task":"gXQ0iU","data":{"note":"Landed: compact parsed entries cached per file; hit/miss/schema-bump tests.","cascade":false,"criteria_bulk_state":"passed","was_status":"claimed","was_claimed_by":"claude","was_expires_at":1795122746}}
+{"v":1,"rep":"GJoupk","seq":62,"ts":1795115620472,"actor":"claude","type":"unblocked","task":"tyXDeg","data":{"blocked_id":"tyXDeg","blocker_id":"gXQ0iU","reason":"blocker_done"}}
+{"v":1,"rep":"GJoupk","seq":63,"ts":1795115661350,"actor":"claude","type":"claimed","task":"tyXDeg","data":{"duration":"3h","expires_at":1795126461}}

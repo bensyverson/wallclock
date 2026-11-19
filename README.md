@@ -26,4 +26,4 @@ The first run reads every transcript in range; later runs reuse a cache in `~/.c
 
 ## Author and license
 
-By Ben Syverson. License not yet chosen.
+By Ben Syverson. MIT License; see [LICENSE](LICENSE).

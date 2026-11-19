@@ -21,3 +21,7 @@ Format: one dated H2 per entry, a headline, then what it is, why it's parked, an
 ## 2026-11-19 Configurable language override per repo
 
 **What:** let a config file set a repo's language when marker files mislead (mixed Rust/Python, docs repos). **Why parked:** marker detection is right for the current comparisons. **Un-park when:** a comparison by language is skewed by a misdetected repo.
+
+## 2026-11-19 Split a long approved command into approval and run time
+
+**What:** when a person-approved command's interval runs past `--away`, count the rest as `tool:<type>` for kinds that plausibly run long (`build`, `test`, `package`, `wait`), and keep it as `away` for the rest (a quick `git status` approved after lunch). **Why parked:** the transcript doesn't record when the person clicked, and in 30 days of real data no command waited on approval at all: all 6 person-decided permissions were answers to `AskUserQuestion` (grep for a `permissionDecision` source starting `user_`, then `go run ./scripts/gaps -days 30 -bucket approval`). **Un-park when:** someone who approves commands by hand uses wallclock and their `approval` or `away` time is large.
